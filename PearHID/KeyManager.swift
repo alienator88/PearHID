@@ -31,7 +31,7 @@ struct MainMappingRowView: View {
             }
             .frame(width: 150)
 
-            Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
+//            Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
 
             Menu(newMapping.to?.key ?? "To Key") {
                 ForEach(allKeys) { group in
@@ -68,15 +68,26 @@ struct MappingRowListItem: View {
     let mapping: KeyMapping
 
     var body: some View {
+
         HStack {
-            Text("\(mapping.from?.key ?? "Unknown")")
-                .frame(maxWidth: .infinity, alignment: .leading) // Left-aligned with flexible width
-            Spacer()
-            Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
-            Spacer()
-            Text("\(mapping.to?.key ?? "Unknown")")
-                .frame(maxWidth: .infinity, alignment: .leading) // Left-aligned with flexible width
-            Spacer()
+            HStack {
+
+                Text("\(mapping.from?.key ?? "Unknown")")
+                    .frame(maxWidth: .infinity, alignment: .center) // Left-aligned with flexible width
+
+                Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
+
+                Text("\(mapping.to?.key ?? "Unknown")")
+                    .frame(maxWidth: .infinity, alignment: .center) // Right-aligned with flexible width
+
+            }
+            .padding(8)
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.secondary.opacity(0.1))
+                //                .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
+            }
+
             Button(action: {
                 viewModel.removeMapping(mapping)
             }) {
@@ -89,8 +100,8 @@ struct MappingRowListItem: View {
             }
             .buttonStyle(.plain)
             .help("Remove this mapping")
-
         }
+
     }
 }
 
@@ -177,61 +188,45 @@ class MappingsViewModel: ObservableObject {
 extension MappingsViewModel {
 
     func loadExistingMappings() {
-        let launchDaemonsPath = "/Library/LaunchDaemons/com.alienator88.PearHID.KeyRemapping.plist"
+        let process = Process()
+        process.launchPath = "/usr/bin/env"
+        process.arguments = ["hidutil", "property", "--get", "UserKeyMapping"]
 
-        guard FileManager.default.fileExists(atPath: launchDaemonsPath) else {
-            print("File does not exist at path: \(launchDaemonsPath)")
+        let pipe = Pipe()
+        process.standardOutput = pipe
+
+        do {
+            try process.run()
+        } catch {
+            print("Failed to execute hidutil command: \(error)")
             return
         }
 
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: launchDaemonsPath)),
-              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let arguments = plist["ProgramArguments"] as? [String],
-              let jsonString = arguments.last else {
-            print("Failed to read plist or get mapping string")
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let outputString = String(data: data, encoding: .utf8) else {
+            print("Failed to read output from hidutil")
             return
         }
 
+        // Remove unwanted characters and format as valid JSON
+        let cleanedString = outputString
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "=", with: ":")
+            .replacingOccurrences(of: ";", with: ",")
+            .replacingOccurrences(of: "HIDKeyboardModifierMappingDst", with: "\"HIDKeyboardModifierMappingDst\"")
+            .replacingOccurrences(of: "HIDKeyboardModifierMappingSrc", with: "\"HIDKeyboardModifierMappingSrc\"")
+            .replacingOccurrences(of: "(", with: "[")
+            .replacingOccurrences(of: ")", with: "]")
 
-        // Convert hex values to decimal strings
-        let hexPattern = "0x[0-9A-Fa-f]+"
-        let regex = try? NSRegularExpression(pattern: hexPattern, options: [])
-        var processedString = jsonString
-
-        if let regex = regex {
-            // Find all matches and convert them from last to first (to avoid changing string indices)
-            let matches = regex.matches(in: jsonString, options: [], range: NSRange(jsonString.startIndex..., in: jsonString))
-            for match in matches.reversed() {
-                if let range = Range(match.range, in: jsonString) {
-                    let hexString = String(jsonString[range])
-                    // Convert hex to decimal
-                    if let hexNumber = Int(hexString.replacingOccurrences(of: "0x", with: ""), radix: 16) {
-                        processedString = processedString.replacingOccurrences(of: hexString, with: "\(hexNumber)")
-                    }
-                }
-            }
-        }
-
-        // Parse the JSON string containing the mappings
-        guard let jsonData = processedString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: [[String: Any]]] else {
+        guard let jsonData = cleanedString.data(using: .utf8),
+              let mappingsArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
             print("Failed to parse JSON data")
-            if let jsonData = processedString.data(using: .utf8) {
-                do {
-                    let _ = try JSONSerialization.jsonObject(with: jsonData)
-                } catch {
-                    print("JSON parsing error: \(error)")
-                }
-            }
             return
         }
 
-        guard let mappingsArray = json["UserKeyMapping"] else {
-            print("Failed to get UserKeyMapping array")
-            return
-        }
-
-        // Convert the parsed mappings back into KeyMapping objects
         let loadedMappings: [KeyMapping] = mappingsArray.compactMap { mapping in
             guard let srcHex = mapping["HIDKeyboardModifierMappingSrc"] as? Int,
                   let dstHex = mapping["HIDKeyboardModifierMappingDst"] as? Int else {
@@ -239,35 +234,117 @@ extension MappingsViewModel {
                 return nil
             }
 
-            // Extract just the last two digits from the hex value (after 0x70000000)
-            let srcKeyHex = UInt64(srcHex & 0xFF)  // Keep only the last byte
-            let dstKeyHex = UInt64(dstHex & 0xFF)  // Keep only the last byte
+            let srcKeyHex = UInt64(srcHex & 0xFF)
+            let dstKeyHex = UInt64(dstHex & 0xFF)
 
-//            print("Looking for keys with hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
-
-            // Find matching KeyItems from our allKeys array
             let fromKey = findKeyItem(forHex: srcKeyHex)
             let toKey = findKeyItem(forHex: dstKeyHex)
 
             guard let fromKey = fromKey, let toKey = toKey else {
                 print("Could not find matching keys for hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
-                // Debug print all key hex values
-//                for group in allKeys {
-//                    for key in group.keys {
-//                        print("Available key: \(key.key) = \(String(format:"0x%X", key.hex))")
-//                    }
-//                }
                 return nil
             }
             return KeyMapping(from: fromKey, to: toKey)
         }
 
-        // Update the viewModel's mappings on the main thread
         DispatchQueue.main.async {
             self.mappings = loadedMappings
             self.plistLoaded = true
         }
     }
+
+
+//    func loadExistingMappings2() {
+//        let launchDaemonsPath = "/Library/LaunchDaemons/com.alienator88.PearHID.KeyRemapping.plist"
+//
+//        guard FileManager.default.fileExists(atPath: launchDaemonsPath) else {
+//            print("File does not exist at path: \(launchDaemonsPath)")
+//            return
+//        }
+//
+//        guard let data = try? Data(contentsOf: URL(fileURLWithPath: launchDaemonsPath)),
+//              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+//              let arguments = plist["ProgramArguments"] as? [String],
+//              let jsonString = arguments.last else {
+//            print("Failed to read plist or get mapping string")
+//            return
+//        }
+//
+//        // Convert hex values to decimal strings
+//        let hexPattern = "0x[0-9A-Fa-f]+"
+//        let regex = try? NSRegularExpression(pattern: hexPattern, options: [])
+//        var processedString = jsonString
+//
+//        if let regex = regex {
+//            // Find all matches and convert them from last to first (to avoid changing string indices)
+//            let matches = regex.matches(in: jsonString, options: [], range: NSRange(jsonString.startIndex..., in: jsonString))
+//            for match in matches.reversed() {
+//                if let range = Range(match.range, in: jsonString) {
+//                    let hexString = String(jsonString[range])
+//                    // Convert hex to decimal
+//                    if let hexNumber = Int(hexString.replacingOccurrences(of: "0x", with: ""), radix: 16) {
+//                        processedString = processedString.replacingOccurrences(of: hexString, with: "\(hexNumber)")
+//                    }
+//                }
+//            }
+//        }
+//
+//        // Parse the JSON string containing the mappings
+//        guard let jsonData = processedString.data(using: .utf8),
+//              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: [[String: Any]]] else {
+//            print("Failed to parse JSON data")
+//            if let jsonData = processedString.data(using: .utf8) {
+//                do {
+//                    let _ = try JSONSerialization.jsonObject(with: jsonData)
+//                } catch {
+//                    print("JSON parsing error: \(error)")
+//                }
+//            }
+//            return
+//        }
+//
+//        guard let mappingsArray = json["UserKeyMapping"] else {
+//            print("Failed to get UserKeyMapping array")
+//            return
+//        }
+//
+//        // Convert the parsed mappings back into KeyMapping objects
+//        let loadedMappings: [KeyMapping] = mappingsArray.compactMap { mapping in
+//            guard let srcHex = mapping["HIDKeyboardModifierMappingSrc"] as? Int,
+//                  let dstHex = mapping["HIDKeyboardModifierMappingDst"] as? Int else {
+//                print("Failed to parse hex values from mapping: \(mapping)")
+//                return nil
+//            }
+//
+//            // Extract just the last two digits from the hex value (after 0x70000000)
+//            let srcKeyHex = UInt64(srcHex & 0xFF)  // Keep only the last byte
+//            let dstKeyHex = UInt64(dstHex & 0xFF)  // Keep only the last byte
+//
+////            print("Looking for keys with hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
+//
+//            // Find matching KeyItems from our allKeys array
+//            let fromKey = findKeyItem(forHex: srcKeyHex)
+//            let toKey = findKeyItem(forHex: dstKeyHex)
+//
+//            guard let fromKey = fromKey, let toKey = toKey else {
+//                print("Could not find matching keys for hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
+//                // Debug print all key hex values
+////                for group in allKeys {
+////                    for key in group.keys {
+////                        print("Available key: \(key.key) = \(String(format:"0x%X", key.hex))")
+////                    }
+////                }
+//                return nil
+//            }
+//            return KeyMapping(from: fromKey, to: toKey)
+//        }
+//
+//        // Update the viewModel's mappings on the main thread
+//        DispatchQueue.main.async {
+//            self.mappings = loadedMappings
+//            self.plistLoaded = true
+//        }
+//    }
 
     private func findKeyItem(forHex hex: UInt64) -> KeyItem? {
         for group in allKeys {
@@ -345,12 +422,25 @@ extension MappingsViewModel {
     }
 
     func clearHIDKeyMappings() {
+        @AppStorage("settings.persistReboot") var persistReboot: Bool = true
+
         // Command to set UserKeyMapping to an empty array
         let command = "hidutil property --set '{\"UserKeyMapping\":[]}'"
         executeCommand(command: command)
+
+        if persistReboot {
+            do {
+                try removeLaunchDaemon()
+            } catch {
+                print("Error: \(error.localizedDescription)")
+            }
+        }
+
     }
 
     func setHIDKeyMappings() {
+        @AppStorage("settings.persistReboot") var persistReboot: Bool = true
+        
         // Generate HIDKeyboardModifiers wrapped correctly
         let mappingsJSON = generateHIDmappings()
 //        mappingsJSON = mappingsJSON.replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
@@ -358,6 +448,14 @@ extension MappingsViewModel {
         // Command to set UserKeyMapping with generated mappings
         let command = "hidutil property --set '\(mappingsJSON)'"
         executeCommand(command: command)
+
+        if persistReboot {
+            do {
+                try setupLaunchDaemon(plistContent: generatePlist())
+            } catch {
+                print("Error: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func executeCommand(command: String) {

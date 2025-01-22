@@ -10,6 +10,7 @@ import AlinFoundation
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
+    @AppStorage("settings.persistReboot") private var persistReboot: Bool = true
     @State private var showPlist = false
 
     var body: some View {
@@ -31,22 +32,13 @@ struct ContentView: View {
                             ForEach(viewModel.mappings.indices, id: \.self) { key in
                                 MappingRowListItem(mapping: viewModel.mappings[key])
                                 // Add a divider if this is not the last item
-                                if key != viewModel.mappings.indices.last {
-                                    Divider()
-                                }
+//                                if key != viewModel.mappings.indices.last {
+//                                    Divider()
+//                                }
                             }
                             Spacer()
                         }
                     }
-
-
-                    if viewModel.plistLoaded {
-                        Text("Custom mappings loaded from saved plist")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .padding(.top)
-                    }
-
                 }
 
                 HStack {
@@ -54,48 +46,55 @@ struct ContentView: View {
                         viewModel.removeAllMappings()
                     }
                     .buttonStyle(ColoredButtonStyle(color: .orange))
-                    .help("Remove all currently configured mappings from the list only")
+                    .help("Remove the configured mappings from the list above (Does not affect hidutil mappings)")
                     .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
-                    Button("Clear HID") {
+                    Button("Reset HID") {
                         viewModel.clearHIDKeyMappings()
                     }
                     .buttonStyle(ColoredButtonStyle(color: .orange))
-                    .help("Clear HID key mappings for this session only")
+                    .help("Remove all custom HID key mappings")
 
                     Button("Set HID") {
                         viewModel.setHIDKeyMappings()
                     }
                     .buttonStyle(ColoredButtonStyle(color: .blue))
-                    .help("Set HID key mappings for this session only, restart will clear them out")
+                    .help("Set HID key mappings to the configured list above")
                     .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
-                    Button("Remove Plist") {
-                        do {
-                            try viewModel.removeLaunchDaemon()
-                        } catch {
-                            print("Error: \(error.localizedDescription)")
-                        }
+                    Toggle("Persist Reboot", isOn: $persistReboot)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .help("If this is enabled, a plist will be installed so the mappings survive reboots. Otherwise the mappings only affect the current session.")
 
-                    }
-                    .buttonStyle(ColoredButtonStyle(color: .red))
-                    .help("Remove plist from LaunchDaemons and clear keyboard mappings")
-                    .disabled(!viewModel.plistLoaded)
 
-                    Button("Apply Plist") {
-                        do {
-                            try viewModel.setupLaunchDaemon(plistContent: viewModel.generatePlist())
-                        } catch {
-                            print("Error: \(error.localizedDescription)")
-                        }
 
-                    }
-                    .buttonStyle(ColoredButtonStyle(color: .green))
-                    .help("Install plist in LaunchDaemons and set up keyboard mappings")
-                    .disabled(viewModel.mappings.isEmpty)
-                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
+//                    Button("Remove Plist") {
+//                        do {
+//                            try viewModel.removeLaunchDaemon()
+//                        } catch {
+//                            print("Error: \(error.localizedDescription)")
+//                        }
+//
+//                    }
+//                    .buttonStyle(ColoredButtonStyle(color: .red))
+//                    .help("Remove plist from LaunchDaemons and clear keyboard mappings")
+//                    .disabled(!viewModel.plistLoaded)
+//
+//                    Button("Apply Plist") {
+//                        do {
+//                            try viewModel.setupLaunchDaemon(plistContent: viewModel.generatePlist())
+//                        } catch {
+//                            print("Error: \(error.localizedDescription)")
+//                        }
+//
+//                    }
+//                    .buttonStyle(ColoredButtonStyle(color: .green))
+//                    .help("Install plist in LaunchDaemons and set up keyboard mappings")
+//                    .disabled(viewModel.mappings.isEmpty)
+//                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                 }
 
             }
@@ -106,6 +105,23 @@ struct ContentView: View {
             // Preview Plist Content
             if showPlist {
                 VStack() {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            copyToClipboard(viewModel.generatePlist())
+                        }) {
+                            Image(systemName: "list.clipboard")
+                                .padding(5)
+                                .padding(.horizontal, 2)
+                                .padding(.bottom, 1)
+                                .background(Color.blue)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .shadow(radius: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Copy to clipboard")
+                    }
+                    .padding([.top, .trailing])
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             Text(viewModel.generatePlist())
@@ -118,11 +134,12 @@ struct ContentView: View {
                     Spacer()
                 }
                 .frame(width: 400)
-                .background {
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay {
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
                     }
-                .background(.ultraThinMaterial)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding([.trailing, .bottom])
                 .transition(.move(edge: .trailing))
@@ -144,7 +161,7 @@ struct ContentView: View {
                         .font(.title3)
                 }
                 .buttonStyle(.bordered)
-                .help("Refresh mappings from local file if it exists")
+                .help("Refresh custom mappings")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -161,7 +178,7 @@ struct ContentView: View {
             }
 
         }
-        .frame(minWidth: 650, minHeight: 450)
+        .frame(minWidth: 640, minHeight: 450)
         .background(.primary.opacity(0.00000001))
         .onTapGesture {
             withAnimation {
