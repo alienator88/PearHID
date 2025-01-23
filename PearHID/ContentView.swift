@@ -42,59 +42,34 @@ struct ContentView: View {
                 }
 
                 HStack {
-                    Button("Clear List") {
-                        viewModel.removeAllMappings()
-                    }
-                    .buttonStyle(ColoredButtonStyle(color: .orange))
-                    .help("Remove the configured mappings from the list above (Does not affect hidutil mappings)")
-                    .disabled(viewModel.mappings.isEmpty)
-                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
+//                    Button("Clear List") {
+//                        viewModel.removeAllMappings()
+//                    }
+//                    .buttonStyle(ColoredButtonStyle(color: .orange))
+//                    .help("Remove the configured mappings from the list above (Does not affect hidutil mappings)")
+//                    .disabled(viewModel.mappings.isEmpty)
+//                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
-                    Button("Reset HID") {
+                    Button("Reset") {
                         viewModel.clearHIDKeyMappings()
                     }
                     .buttonStyle(ColoredButtonStyle(color: .orange))
+                    .disabled(viewModel.mappings.isEmpty)
+                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                     .help("Remove all custom HID key mappings")
 
-                    Button("Set HID") {
+                    Button("Save") {
                         viewModel.setHIDKeyMappings()
                     }
                     .buttonStyle(ColoredButtonStyle(color: .blue))
                     .help("Set HID key mappings to the configured list above")
-                    .disabled(viewModel.mappings.isEmpty)
+//                    .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
                     Toggle("Persist Reboot", isOn: $persistReboot)
                         .toggleStyle(.switch)
                         .controlSize(.small)
                         .help("If this is enabled, a plist will be installed so the mappings survive reboots. Otherwise the mappings only affect the current session.")
-
-
-
-//                    Button("Remove Plist") {
-//                        do {
-//                            try viewModel.removeLaunchDaemon()
-//                        } catch {
-//                            print("Error: \(error.localizedDescription)")
-//                        }
-//
-//                    }
-//                    .buttonStyle(ColoredButtonStyle(color: .red))
-//                    .help("Remove plist from LaunchDaemons and clear keyboard mappings")
-//                    .disabled(!viewModel.plistLoaded)
-//
-//                    Button("Apply Plist") {
-//                        do {
-//                            try viewModel.setupLaunchDaemon(plistContent: viewModel.generatePlist())
-//                        } catch {
-//                            print("Error: \(error.localizedDescription)")
-//                        }
-//
-//                    }
-//                    .buttonStyle(ColoredButtonStyle(color: .green))
-//                    .help("Install plist in LaunchDaemons and set up keyboard mappings")
-//                    .disabled(viewModel.mappings.isEmpty)
-//                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                 }
 
             }

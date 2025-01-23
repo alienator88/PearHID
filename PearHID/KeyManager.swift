@@ -66,6 +66,7 @@ struct MainMappingRowView: View {
 struct MappingRowListItem: View {
     @EnvironmentObject var viewModel: MappingsViewModel
     let mapping: KeyMapping
+    @State private var isHovered: Bool = false
 
     var body: some View {
 
@@ -73,33 +74,33 @@ struct MappingRowListItem: View {
             HStack {
 
                 Text("\(mapping.from?.key ?? "Unknown")")
-                    .frame(maxWidth: .infinity, alignment: .center) // Left-aligned with flexible width
+                    .frame(maxWidth: .infinity, alignment: .center)
 
                 Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
 
                 Text("\(mapping.to?.key ?? "Unknown")")
-                    .frame(maxWidth: .infinity, alignment: .center) // Right-aligned with flexible width
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Button(action: {
+                    viewModel.removeMapping(mapping)
+                }) {
+                    Image(systemName: "x.circle.fill")
+                        .opacity(isHovered ? 1 : 0.5)
+
+                }
+                .buttonStyle(.plain)
+                .help("Remove this mapping")
+                .onHover { hovering in
+                    isHovered = hovering
+                }
 
             }
             .padding(8)
-            .overlay {
+            .background {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.secondary.opacity(0.1))
-                //                .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
             }
 
-            Button(action: {
-                viewModel.removeMapping(mapping)
-            }) {
-                Image(systemName: "trash")
-                    .padding(5)
-                    .padding(.horizontal, 2)
-                    .background(Color.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .shadow(radius: 2)
-            }
-            .buttonStyle(.plain)
-            .help("Remove this mapping")
         }
 
     }
@@ -383,7 +384,7 @@ extension MappingsViewModel {
 
             // Step 5. Execute command
             _ = Sudo.run(cmd: "\(write); \(chown); \(chmod)")
-            self.setHIDKeyMappings()
+//            self.setHIDKeyMappings()
 //            try FileManager.default.removeItem(atPath: tempPath)
         } else {
             // If the file doesn't exist, create it in the correct location
@@ -399,7 +400,7 @@ extension MappingsViewModel {
 
             // Step 5. Execute command
             _ = Sudo.run(cmd: "\(write); \(chown); \(chmod)")
-            self.setHIDKeyMappings()
+//            self.setHIDKeyMappings()
             self.plistLoaded = true
         }
 
@@ -417,7 +418,7 @@ extension MappingsViewModel {
         // Step 3: Execute command
         _ = Sudo.run(cmd: "\(remove)")
 
-        self.clearHIDKeyMappings()
+//        self.clearHIDKeyMappings()
         self.plistLoaded = false
     }
 
@@ -427,6 +428,8 @@ extension MappingsViewModel {
         // Command to set UserKeyMapping to an empty array
         let command = "hidutil property --set '{\"UserKeyMapping\":[]}'"
         executeCommand(command: command)
+
+        self.loadExistingMappings()
 
         if persistReboot {
             do {

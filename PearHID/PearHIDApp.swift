@@ -25,7 +25,6 @@ struct PearHIDApp: App {
                 .toolbar { Color.clear }
                 .onAppear {
                     checkAndRequestAccessibilityPermission()
-//                    windowController.open(with: ConsoleView(), width: 600, height: 400)
                 }
         }
         .windowStyle(.hiddenTitleBar)
