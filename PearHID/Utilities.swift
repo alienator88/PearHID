@@ -37,17 +37,11 @@ func openAccessibilitySettings() {
 }
 
 
-struct ColoredButtonStyle: ButtonStyle {
-    var color: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(width: 80, height: 20)
-            .padding(6)
-            .padding(.horizontal, 2)
-            .background(color)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .shadow(radius: 2)
-            .opacity(configuration.isPressed ? 0.8 : 1.0) // Add slight opacity change when pressed
+func openAppSettings() {
+    if #available(macOS 14.0, *) {
+        @Environment(\.openSettings) var openSettings
+        openSettings()
+    } else {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 }

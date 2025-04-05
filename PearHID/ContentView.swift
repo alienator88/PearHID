@@ -10,6 +10,7 @@ import AlinFoundation
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
+    @ObservedObject private var helperToolManager = HelperToolManager.shared
     @State private var showPlist = false
 
     var body: some View {
@@ -43,6 +44,12 @@ struct ContentView: View {
                     .padding(.vertical)
 
                 HStack {
+
+                    if !helperToolManager.isHelperToolInstalled {
+                        HelperBadge()
+                            .frame(width: 220)
+                        Spacer()
+                    }
 
                     Button {
                         viewModel.clearHIDKeyMappings()
