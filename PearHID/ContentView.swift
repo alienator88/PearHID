@@ -10,15 +10,17 @@ import AlinFoundation
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
-    @AppStorage("settings.persistReboot") private var persistReboot: Bool = true
     @State private var showPlist = false
 
     var body: some View {
 
         ZStack {
 
-            // Configured Key Mappings
             VStack(spacing: 10) {
+
+                Divider()
+                    .padding(.bottom)
+
                 if viewModel.mappings.isEmpty {
                     Spacer()
                     Text("No custom mappings added")
@@ -31,45 +33,37 @@ struct ContentView: View {
                         LazyVStack(alignment: .leading, spacing: 10) {
                             ForEach(viewModel.mappings.indices, id: \.self) { key in
                                 MappingRowListItem(mapping: viewModel.mappings[key])
-                                // Add a divider if this is not the last item
-//                                if key != viewModel.mappings.indices.last {
-//                                    Divider()
-//                                }
                             }
                             Spacer()
                         }
                     }
                 }
 
-                HStack {
-//                    Button("Clear List") {
-//                        viewModel.removeAllMappings()
-//                    }
-//                    .buttonStyle(ColoredButtonStyle(color: .orange))
-//                    .help("Remove the configured mappings from the list above (Does not affect hidutil mappings)")
-//                    .disabled(viewModel.mappings.isEmpty)
-//                    .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
+                Divider()
+                    .padding(.vertical)
 
-                    Button("Reset") {
+                HStack {
+
+                    Button {
                         viewModel.clearHIDKeyMappings()
+                    } label: {
+                        Text("Reset").padding(5)
                     }
-                    .buttonStyle(ColoredButtonStyle(color: .orange))
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
                     .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                     .help("Remove all custom HID key mappings")
 
-                    Button("Save") {
+                    Button {
                         viewModel.setHIDKeyMappings()
+                    } label: {
+                        Text("Save").padding(5)
                     }
-                    .buttonStyle(ColoredButtonStyle(color: .blue))
+                    .buttonStyle(.borderedProminent)
                     .help("Set HID key mappings to the configured list above")
-//                    .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
-                    Toggle("Persist Reboot", isOn: $persistReboot)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .help("If this is enabled, a plist will be installed so the mappings survive reboots. Otherwise the mappings only affect the current session.")
                 }
 
             }
@@ -114,7 +108,7 @@ struct ContentView: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
-                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding([.trailing, .bottom])
                 .transition(.move(edge: .trailing))
@@ -136,7 +130,7 @@ struct ContentView: View {
                         .font(.title3)
                 }
                 .buttonStyle(.bordered)
-                .help("Refresh custom mappings")
+                .help("Reload existing mappings")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -154,7 +148,9 @@ struct ContentView: View {
 
         }
         .frame(minWidth: 640, minHeight: 450)
-        .background(.primary.opacity(0.00000001))
+        .background(.ultraThickMaterial)
+        .background(MetalView().edgesIgnoringSafeArea(.all))
+        //        .background(.primary.opacity(0.00000001))
         .onTapGesture {
             withAnimation {
                 showPlist = false

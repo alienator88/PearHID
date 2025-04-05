@@ -13,8 +13,9 @@ struct PearHIDApp: App {
     @StateObject var viewModel = MappingsViewModel()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var updater = Updater(owner: "alienator88", repo: "PearHID")
-    @StateObject private var themeManager = ThemeManager.shared
-    @State private var windowController = WindowManager()
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var helperToolManager = HelperToolManager.shared
+    @State private var windowController = WindowManager.shared
 
     var body: some Scene {
         WindowGroup {
@@ -30,6 +31,12 @@ struct PearHIDApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)
+
+        Settings {
+            SettingsView()
+                .environmentObject(updater)
+                .toolbarBackground(.clear)
+        }
     }
 }
 

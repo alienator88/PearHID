@@ -199,7 +199,7 @@ extension MappingsViewModel {
         do {
             try process.run()
         } catch {
-            print("Failed to execute hidutil command: \(error)")
+            printOS("Failed to execute hidutil command: \(error)")
             return
         }
 
@@ -207,7 +207,7 @@ extension MappingsViewModel {
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let outputString = String(data: data, encoding: .utf8) else {
-            print("Failed to read output from hidutil")
+            printOS("Failed to read output from hidutil")
             return
         }
 
@@ -224,14 +224,14 @@ extension MappingsViewModel {
 
         guard let jsonData = cleanedString.data(using: .utf8),
               let mappingsArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
-            print("Failed to parse JSON data")
+            printOS("Failed to parse JSON data")
             return
         }
 
         let loadedMappings: [KeyMapping] = mappingsArray.compactMap { mapping in
             guard let srcHex = mapping["HIDKeyboardModifierMappingSrc"] as? Int,
                   let dstHex = mapping["HIDKeyboardModifierMappingDst"] as? Int else {
-                print("Failed to parse hex values from mapping: \(mapping)")
+                printOS("Failed to parse hex values from mapping: \(mapping)")
                 return nil
             }
 
@@ -242,7 +242,7 @@ extension MappingsViewModel {
             let toKey = findKeyItem(forHex: dstKeyHex)
 
             guard let fromKey = fromKey, let toKey = toKey else {
-                print("Could not find matching keys for hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
+                printOS("Could not find matching keys for hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
                 return nil
             }
             return KeyMapping(from: fromKey, to: toKey)
@@ -254,98 +254,6 @@ extension MappingsViewModel {
         }
     }
 
-
-//    func loadExistingMappings2() {
-//        let launchDaemonsPath = "/Library/LaunchDaemons/com.alienator88.PearHID.KeyRemapping.plist"
-//
-//        guard FileManager.default.fileExists(atPath: launchDaemonsPath) else {
-//            print("File does not exist at path: \(launchDaemonsPath)")
-//            return
-//        }
-//
-//        guard let data = try? Data(contentsOf: URL(fileURLWithPath: launchDaemonsPath)),
-//              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-//              let arguments = plist["ProgramArguments"] as? [String],
-//              let jsonString = arguments.last else {
-//            print("Failed to read plist or get mapping string")
-//            return
-//        }
-//
-//        // Convert hex values to decimal strings
-//        let hexPattern = "0x[0-9A-Fa-f]+"
-//        let regex = try? NSRegularExpression(pattern: hexPattern, options: [])
-//        var processedString = jsonString
-//
-//        if let regex = regex {
-//            // Find all matches and convert them from last to first (to avoid changing string indices)
-//            let matches = regex.matches(in: jsonString, options: [], range: NSRange(jsonString.startIndex..., in: jsonString))
-//            for match in matches.reversed() {
-//                if let range = Range(match.range, in: jsonString) {
-//                    let hexString = String(jsonString[range])
-//                    // Convert hex to decimal
-//                    if let hexNumber = Int(hexString.replacingOccurrences(of: "0x", with: ""), radix: 16) {
-//                        processedString = processedString.replacingOccurrences(of: hexString, with: "\(hexNumber)")
-//                    }
-//                }
-//            }
-//        }
-//
-//        // Parse the JSON string containing the mappings
-//        guard let jsonData = processedString.data(using: .utf8),
-//              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: [[String: Any]]] else {
-//            print("Failed to parse JSON data")
-//            if let jsonData = processedString.data(using: .utf8) {
-//                do {
-//                    let _ = try JSONSerialization.jsonObject(with: jsonData)
-//                } catch {
-//                    print("JSON parsing error: \(error)")
-//                }
-//            }
-//            return
-//        }
-//
-//        guard let mappingsArray = json["UserKeyMapping"] else {
-//            print("Failed to get UserKeyMapping array")
-//            return
-//        }
-//
-//        // Convert the parsed mappings back into KeyMapping objects
-//        let loadedMappings: [KeyMapping] = mappingsArray.compactMap { mapping in
-//            guard let srcHex = mapping["HIDKeyboardModifierMappingSrc"] as? Int,
-//                  let dstHex = mapping["HIDKeyboardModifierMappingDst"] as? Int else {
-//                print("Failed to parse hex values from mapping: \(mapping)")
-//                return nil
-//            }
-//
-//            // Extract just the last two digits from the hex value (after 0x70000000)
-//            let srcKeyHex = UInt64(srcHex & 0xFF)  // Keep only the last byte
-//            let dstKeyHex = UInt64(dstHex & 0xFF)  // Keep only the last byte
-//
-////            print("Looking for keys with hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
-//
-//            // Find matching KeyItems from our allKeys array
-//            let fromKey = findKeyItem(forHex: srcKeyHex)
-//            let toKey = findKeyItem(forHex: dstKeyHex)
-//
-//            guard let fromKey = fromKey, let toKey = toKey else {
-//                print("Could not find matching keys for hex values: src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
-//                // Debug print all key hex values
-////                for group in allKeys {
-////                    for key in group.keys {
-////                        print("Available key: \(key.key) = \(String(format:"0x%X", key.hex))")
-////                    }
-////                }
-//                return nil
-//            }
-//            return KeyMapping(from: fromKey, to: toKey)
-//        }
-//
-//        // Update the viewModel's mappings on the main thread
-//        DispatchQueue.main.async {
-//            self.mappings = loadedMappings
-//            self.plistLoaded = true
-//        }
-//    }
 
     private func findKeyItem(forHex hex: UInt64) -> KeyItem? {
         for group in allKeys {
@@ -375,17 +283,20 @@ extension MappingsViewModel {
             let tempPath = "/tmp/temp_launch_daemon.plist"
             try data.write(to: URL(fileURLWithPath: tempPath))
             write = "cp \(tempPath) \(plistPath)"
+
             // Step 3: Run chmod and chown using the Sudo struct
             let chown = "chown root:wheel \(plistPath)"
             let chmod =  "chmod 644 \(plistPath)"
 
-            // Step 4: Start the daemon
-//            let bootstrap = "launchctl bootstrap system \(plistPath)"
+            // Step 4. Execute command
+            let success = executeFileCommands("\(write); \(chown); \(chmod)")
+            if success {
+//                printOS("Successfully setup launchd plist.")
+            } else {
+                printOS("Failed to setup launchd plist")
+            }
 
-            // Step 5. Execute command
-            _ = Sudo.run(cmd: "\(write); \(chown); \(chmod)")
-//            self.setHIDKeyMappings()
-//            try FileManager.default.removeItem(atPath: tempPath)
+
         } else {
             // If the file doesn't exist, create it in the correct location
             let tempPath = "/tmp/temp_launch_daemon.plist"
@@ -395,13 +306,15 @@ extension MappingsViewModel {
             let chown = "chown root:wheel \(plistPath)"
             let chmod =  "chmod 644 \(plistPath)"
 
-            // Step 4: Start the daemon
-//            let bootstrap = "launchctl bootstrap system \(plistPath)"
-
             // Step 5. Execute command
-            _ = Sudo.run(cmd: "\(write); \(chown); \(chmod)")
-//            self.setHIDKeyMappings()
-            self.plistLoaded = true
+            let success = executeFileCommands("\(write); \(chown); \(chmod)")
+            if success {
+                self.plistLoaded = true
+//                printOS("Successfully setup launchd plist.")
+            } else {
+                printOS("Failed to setup launchd plist")
+            }
+
         }
 
     }
@@ -409,16 +322,18 @@ extension MappingsViewModel {
     func removeLaunchDaemon() throws {
         let plistPath = "/Library/LaunchDaemons/com.alienator88.PearHID.KeyRemapping.plist"
 
-        // Step 1: Stop the daemon
-//        let bootout = "launchctl bootout system \(plistPath)"
-
-        // Step 2: Remove plist file
+        // Step 1: Remove plist file
         let remove = "rm -f \(plistPath)"
 
-        // Step 3: Execute command
-        _ = Sudo.run(cmd: "\(remove)")
+        // Step 2: Execute command
+        let success = executeFileCommands("\(remove)")
+        if success {
+            self.plistLoaded = false
+//            printOS("Successfully removed launchd plist.")
+        } else {
+            printOS("Failed to remove launchd plist")
+        }
 
-//        self.clearHIDKeyMappings()
         self.plistLoaded = false
     }
 
@@ -435,7 +350,7 @@ extension MappingsViewModel {
             do {
                 try removeLaunchDaemon()
             } catch {
-                print("Error: \(error.localizedDescription)")
+                printOS("Error: \(error.localizedDescription)")
             }
         }
 
@@ -456,7 +371,7 @@ extension MappingsViewModel {
             do {
                 try setupLaunchDaemon(plistContent: generatePlist())
             } catch {
-                print("Error: \(error.localizedDescription)")
+                printOS("Error: \(error.localizedDescription)")
             }
         }
     }
@@ -483,3 +398,36 @@ extension MappingsViewModel {
     }
 }
 
+
+
+private func executeFileCommands(_ commands: String) -> Bool {
+    var status = false
+
+    if HelperToolManager.shared.isHelperToolInstalled {
+        let semaphore = DispatchSemaphore(value: 0)
+        var success = false
+        var output = ""
+
+        Task {
+            let result = await HelperToolManager.shared.runCommand(commands)
+            success = result.0
+            output = result.1
+            semaphore.signal()
+        }
+        semaphore.wait()
+
+        status = success
+        if !success {
+            printOS("Helper Error: \(output)")
+        }
+    } else {
+        let result = performPrivilegedCommands(commands: commands)
+        status = result.0
+        if !status {
+            printOS("Auth Services Error: \(result.1)")
+        }
+
+    }
+
+    return status
+}
