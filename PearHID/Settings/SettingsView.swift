@@ -159,7 +159,7 @@ struct SettingsView: View {
                     }
                 }
 
-                GroupBox(label: Text("Persistance").font(.title2).padding(.bottom, 5), content: {
+                GroupBox(label: Text("Persistence").font(.title2).padding(.bottom, 5), content: {
                     HStack(spacing: 0) {
                         Image(systemName: "autostartstop")
                             .resizable()

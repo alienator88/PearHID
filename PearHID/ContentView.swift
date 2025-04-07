@@ -55,9 +55,10 @@ struct ContentView: View {
                         viewModel.clearHIDKeyMappings()
                     } label: {
                         Text("Reset").padding(5)
+//                            .foregroundStyle(.red)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
+//                    .buttonStyle(.borderedProminent)
+//                    .tint(.secondary)
                     .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                     .help("Remove all custom HID key mappings")
@@ -66,8 +67,10 @@ struct ContentView: View {
                         viewModel.setHIDKeyMappings()
                     } label: {
                         Text("Save").padding(5)
+//                            .foregroundStyle(.blue)
                     }
-                    .buttonStyle(.borderedProminent)
+//                    .buttonStyle(.borderedProminent)
+//                    .tint(.secondary)
                     .help("Set HID key mappings to the configured list above")
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 

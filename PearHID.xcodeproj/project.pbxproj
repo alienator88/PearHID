@@ -8,8 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		C701EEE32DA0A35100907AC6 /* PearHIDHelper in CopyFiles */ = {isa = PBXBuildFile; fileRef = C701EECF2DA0A15C00907AC6 /* PearHIDHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		C702B0FC2DA0B707007DCDF0 /* changes.md in Resources */ = {isa = PBXBuildFile; fileRef = C702B0F92DA0B707007DCDF0 /* changes.md */; };
-		C702B0FD2DA0B707007DCDF0 /* ExportOptions.plist in Resources */ = {isa = PBXBuildFile; fileRef = C702B0FA2DA0B707007DCDF0 /* ExportOptions.plist */; };
 		C784F8052D15FA450005ABA6 /* AlinFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = C784F8042D15FA450005ABA6 /* AlinFoundation */; };
 /* End PBXBuildFile section */
 
@@ -234,8 +232,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C702B0FC2DA0B707007DCDF0 /* changes.md in Resources */,
-				C702B0FD2DA0B707007DCDF0 /* ExportOptions.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

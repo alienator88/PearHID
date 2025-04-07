@@ -13,24 +13,27 @@ struct PearHIDApp: App {
     @StateObject var viewModel = MappingsViewModel()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var updater = Updater(owner: "alienator88", repo: "PearHID")
-    @ObservedObject private var themeManager = ThemeManager.shared
-    @ObservedObject private var helperToolManager = HelperToolManager.shared
     @State private var windowController = WindowManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(viewModel)
-                .environmentObject(updater)
-                .environmentObject(themeManager)
                 .toolbar { Color.clear }
-                .onAppear {
-                    checkAndRequestAccessibilityPermission()
-                }
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(after: .help) {
+                Button {
+                    windowController.open(with: ConsoleView(), width: 600, height: 400)
+                } label: {
+                    Text("Debug Console")
+                }
+                .keyboardShortcut("d", modifiers: .command)
+            }
+        }
 
         Settings {
             SettingsView()

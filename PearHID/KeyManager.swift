@@ -8,44 +8,43 @@
 import Foundation
 import SwiftUI
 import AlinFoundation
+import IOKit.hid
 
 struct MainMappingRowView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
     @State private var newMapping = KeyMapping()
+    @State private var showingFromPopover = false
+    @State private var showingToPopover = false
 
     var body: some View {
-        let usedKeys: Set<String> = Set(viewModel.mappings.compactMap { $0.from?.key } + viewModel.mappings.compactMap { $0.to?.key })
+        //        let usedKeys = viewModel.usedKeyStrings
 
         HStack {
-            Menu(newMapping.from?.key ?? "From Key") {
-                ForEach(allKeys) { group in
-                    Menu(group.group) {
-                        ForEach(group.keys) { key in
-                            Button(key.key) {
-                                newMapping.from = key
-                            }
-                            .disabled(newMapping.to?.key == key.key || usedKeys.contains(key.key))
-                        }
-                    }
-                }
+            Button {
+                showingFromPopover.toggle()
+            } label: {
+                Text(newMapping.from?.key ?? "From Key")
+                    .frame(width: 150)
             }
-            .frame(width: 150)
-
-//            Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
-
-            Menu(newMapping.to?.key ?? "To Key") {
-                ForEach(allKeys) { group in
-                    Menu(group.group) {
-                        ForEach(group.keys) { key in
-                            Button(key.key) {
-                                newMapping.to = key
-                            }
-                            .disabled(newMapping.from?.key == key.key || usedKeys.contains(key.key))
-                        }
-                    }
-                }
+            .popover(isPresented: $showingFromPopover) {
+                KeySelectionPopover(selectedKey: $newMapping.from,
+                                    oppositeKey: newMapping.to,
+                                    usedKeys: viewModel.usedKeyStrings,
+                                    onDismiss: { showingFromPopover = false })
             }
-            .frame(width: 150)
+
+            Button {
+                showingToPopover.toggle()
+            } label: {
+                Text(newMapping.to?.key ?? "To Key")
+                    .frame(width: 150)
+            }
+            .popover(isPresented: $showingToPopover) {
+                KeySelectionPopover(selectedKey: $newMapping.to,
+                                    oppositeKey: newMapping.from,
+                                    usedKeys: viewModel.usedKeyStrings,
+                                    onDismiss: { showingToPopover = false })
+            }
 
             Button {
                 if let _ = newMapping.from, let _ = newMapping.to {
@@ -60,8 +59,6 @@ struct MainMappingRowView: View {
         }
     }
 }
-
-
 
 struct MappingRowListItem: View {
     @EnvironmentObject var viewModel: MappingsViewModel
@@ -106,13 +103,13 @@ struct MappingRowListItem: View {
     }
 }
 
-
-
-
 // View model holding the array of mappings
 class MappingsViewModel: ObservableObject {
     @Published var mappings: [KeyMapping] = []
     @Published var plistLoaded: Bool = false
+    var usedKeyStrings: Set<String> {
+        Set(mappings.compactMap { $0.from?.key } + mappings.compactMap { $0.to?.key })
+    }
 
     init() {
         loadExistingMappings()
@@ -132,15 +129,7 @@ class MappingsViewModel: ObservableObject {
 
     // Generate plist string from current mappings
     func generatePlist() -> String {
-        let items = mappings.compactMap { mapping -> String? in
-            guard let fromHex = mapping.from?.hex, let toHex = mapping.to?.hex else { return nil }
-            return """
-                        {
-                                "HIDKeyboardModifierMappingSrc": 0x7000000\(String(fromHex, radix:16).uppercased()),
-                                "HIDKeyboardModifierMappingDst": 0x7000000\(String(toHex, radix:16).uppercased())
-                        }
-            """
-        }.joined(separator: ",\n")
+        let items = mappings.compactMap { mappingToHexString(mapping: $0) }.joined(separator: ",\n")
 
         return """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -167,15 +156,7 @@ class MappingsViewModel: ObservableObject {
     }
 
     func generateHIDmappings() -> String {
-        let items = mappings.compactMap { mapping -> String? in
-            guard let fromHex = mapping.from?.hex, let toHex = mapping.to?.hex else { return nil }
-            return """
-                        {
-                                "HIDKeyboardModifierMappingSrc": 0x7000000\(String(fromHex, radix:16).uppercased()),
-                                "HIDKeyboardModifierMappingDst": 0x7000000\(String(toHex, radix:16).uppercased())
-                        }
-            """
-        }.joined(separator: ",\n")
+        let items = mappings.compactMap { mappingToHexString(mapping: $0) }.joined(separator: ",\n")
 
         return """
         {"UserKeyMapping":[
@@ -184,6 +165,17 @@ class MappingsViewModel: ObservableObject {
         """
 
     }
+
+
+    private func mappingToHexString(mapping: KeyMapping) -> String? {
+        guard let fromHex = mapping.from?.hex, let toHex = mapping.to?.hex else { return nil }
+        return """
+                    {
+                            "HIDKeyboardModifierMappingSrc": 0x\(String(0x700000000 + UInt64(fromHex), radix: 16).uppercased()),
+                            "HIDKeyboardModifierMappingDst": 0x\(String(0x700000000 + UInt64(toHex), radix: 16).uppercased())
+                    }
+        """
+    }
 }
 
 extension MappingsViewModel {
@@ -191,7 +183,7 @@ extension MappingsViewModel {
     func loadExistingMappings() {
         let process = Process()
         process.launchPath = "/usr/bin/env"
-        process.arguments = ["hidutil", "property", "--get", "UserKeyMapping"]
+        process.arguments = ["/usr/bin/hidutil", "property", "--get", "UserKeyMapping"]
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -224,7 +216,7 @@ extension MappingsViewModel {
 
         guard let jsonData = cleanedString.data(using: .utf8),
               let mappingsArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
-            printOS("Failed to parse JSON data")
+            printOS("Failed to parse JSON data or nothing is set")
             return
         }
 
@@ -291,7 +283,7 @@ extension MappingsViewModel {
             // Step 4. Execute command
             let success = executeFileCommands("\(write); \(chown); \(chmod)")
             if success {
-//                printOS("Successfully setup launchd plist.")
+                //                printOS("Successfully setup launchd plist.")
             } else {
                 printOS("Failed to setup launchd plist")
             }
@@ -310,7 +302,7 @@ extension MappingsViewModel {
             let success = executeFileCommands("\(write); \(chown); \(chmod)")
             if success {
                 self.plistLoaded = true
-//                printOS("Successfully setup launchd plist.")
+                //                printOS("Successfully setup launchd plist.")
             } else {
                 printOS("Failed to setup launchd plist")
             }
@@ -326,10 +318,9 @@ extension MappingsViewModel {
         let remove = "rm -f \(plistPath)"
 
         // Step 2: Execute command
-        let success = executeFileCommands("\(remove)")
+        let success = executeFileCommands(remove)
         if success {
             self.plistLoaded = false
-//            printOS("Successfully removed launchd plist.")
         } else {
             printOS("Failed to remove launchd plist")
         }
@@ -341,16 +332,18 @@ extension MappingsViewModel {
         @AppStorage("settings.persistReboot") var persistReboot: Bool = true
 
         // Command to set UserKeyMapping to an empty array
-        let command = "hidutil property --set '{\"UserKeyMapping\":[]}'"
-        executeCommand(command: command)
-
+        let command = "/usr/bin/hidutil property --set '{\"UserKeyMapping\":[]}'"
+        let success = executeFileCommands(command)
+        if !success {
+            printOS("Clear Error: Failed to clear HIDKeyboardModifiers for this session")
+        }
         self.loadExistingMappings()
 
         if persistReboot {
             do {
                 try removeLaunchDaemon()
             } catch {
-                printOS("Error: \(error.localizedDescription)")
+                printOS("Clear Plist Error: \(error.localizedDescription)")
             }
         }
 
@@ -358,49 +351,64 @@ extension MappingsViewModel {
 
     func setHIDKeyMappings() {
         @AppStorage("settings.persistReboot") var persistReboot: Bool = true
-        
-        // Generate HIDKeyboardModifiers wrapped correctly
+
+        // Generate HIDKeyboardModifiers
         let mappingsJSON = generateHIDmappings()
-//        mappingsJSON = mappingsJSON.replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
 
         // Command to set UserKeyMapping with generated mappings
-        let command = "hidutil property --set '\(mappingsJSON)'"
-        executeCommand(command: command)
+        //        let compactJSON = mappingsJSON
+        //            .components(separatedBy: .whitespacesAndNewlines)
+        //            .joined()
+        //            .replacingOccurrences(of: "\"", with: "\\\"")
+        //
+        //        let command = "/usr/bin/hidutil property --set \"\(mappingsJSON)\""
+        //        print(command)
+        let success = runHIDUtil(with: mappingsJSON)
+        if !success {
+            printOS("Set Error: Failed to set HIDKeyboardModifiers for this session")
+        }
+
+        //        applyKeyMappingsFromJSON(mappingsJSON)
 
         if persistReboot {
             do {
                 try setupLaunchDaemon(plistContent: generatePlist())
             } catch {
-                printOS("Error: \(error.localizedDescription)")
+                printOS("Set Plist Error: \(error.localizedDescription)")
             }
         }
     }
-
-    private func executeCommand(command: String) {
-        let task = Process()
-        task.launchPath = "/bin/zsh"
-        task.arguments = ["-c", command]
-
-        // Set the environment to inherit the current process's environment
-        task.environment = ProcessInfo.processInfo.environment
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        task.launch()
-        task.waitUntilExit()
-
-//        let outputData = pipe.fileHandleForReading.readDataToEndOfFile()
-//        if let output = String(data: outputData, encoding: .utf8) {
-//            printOS("Command Output:\n\(output)")
-//        }
-    }
 }
 
+func runHIDUtil(with json: String) -> Bool {
+    let process = Process()
+    process.launchPath = "/usr/bin/hidutil"
+    process.arguments = ["property", "--set", "\(json)"]
+    let cmdArgs = process.arguments?.joined(separator: " ") ?? ""
+    printOS("COMMAND: \(process.launchPath ?? "") \(cmdArgs)")
 
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = pipe
 
-private func executeFileCommands(_ commands: String) -> Bool {
+    do {
+        try process.run()
+    } catch {
+        printOS("Failed to run hidutil: \(error)")
+        return false
+    }
+
+    process.waitUntilExit()
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    if let output = String(data: data, encoding: .utf8) {
+        printOS("hidutil output: \(output)")
+    }
+
+    return process.terminationStatus == 0
+}
+
+func executeFileCommands(_ commands: String) -> Bool {
     var status = false
 
     if HelperToolManager.shared.isHelperToolInstalled {
@@ -431,3 +439,96 @@ private func executeFileCommands(_ commands: String) -> Bool {
 
     return status
 }
+
+func applyKeyMappingsFromJSON(_ json: String) {
+    guard let data = json.data(using: .utf8),
+          let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+        printOS("Invalid JSON for UserKeyMapping: \(json)")
+        return
+    }
+
+    let systemClient = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
+
+    guard let services = IOHIDEventSystemClientCopyServices(systemClient) as? [IOHIDServiceClient] else {
+        printOS("Failed to get HID services")
+        return
+    }
+
+    for service in services {
+        if IOHIDServiceClientConformsTo(service, UInt32(kHIDPage_GenericDesktop), UInt32(kHIDUsage_GD_Keyboard)) != 0 {
+            let success = IOHIDServiceClientSetProperty(service,
+                                                        kIOHIDUserKeyUsageMapKey as CFString,
+                                                        array as CFArray)
+            if !success {
+                printOS("Failed to apply mapping to service")
+            }
+        }
+    }
+}
+
+struct KeySelectionPopover: View {
+    @Binding var selectedKey: KeyItem?
+    let oppositeKey: KeyItem?
+    let usedKeys: Set<String>
+    let onDismiss: () -> Void
+    @State private var selectedGroup: KeyGroup?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let group = selectedGroup {
+                Text("← Back")
+                    .foregroundStyle(.secondary)
+                    .clipShape(Rectangle())
+                    .padding()
+                    .frame(width: .infinity)
+                    .onTapGesture {
+                        selectedGroup = nil
+                    }
+                Divider()
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(group.keys) { key in
+                            Button(action: {
+                                selectedKey = key
+                                onDismiss()
+                                selectedGroup = nil
+                            }) {
+                                Text(key.key)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal)
+                            }
+                            .disabled(oppositeKey?.key == key.key || usedKeys.contains(key.key))
+                            .buttonStyle(.plain)
+                            Divider()
+                        }
+                    }
+                }
+            } else {
+                Text("Select a key").foregroundStyle(.secondary)
+                    .padding()
+                Divider()
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(allKeys) { group in
+                            Button(action: {
+                                selectedGroup = group
+                            }) {
+                                Text(group.group)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal)
+                            }
+                            .buttonStyle(.plain)
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 200)
+    }
+}
+
+
