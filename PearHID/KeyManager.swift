@@ -54,6 +54,7 @@ struct MainMappingRowView: View {
             } label: {
                 Image(systemName: "plus")
             }
+            .opacity((newMapping.from == nil || newMapping.to == nil) ? 0 : 1)
             .disabled(newMapping.from == nil || newMapping.to == nil)
 
         }
@@ -393,12 +394,24 @@ extension MappingsViewModel {
 
     }
 
-    func clearHIDKeyMappings() {
-        applyKeyMappingsAPI(mappings: [])
+    func clearHIDKeyMappings(show: Binding<Bool>) {
+        if isAccessibilityGranted() {
+            mappings = []
+            applyKeyMappingsAPI(mappings: mappings)
+            withAnimation { show.wrappedValue = true }
+        } else {
+            checkAndRequestAccessibilityPermission()
+        }
+
     }
 
-    func setHIDKeyMappings() {
-        applyKeyMappingsAPI(mappings: mappings)
+    func setHIDKeyMappings(show: Binding<Bool>) {
+        if isAccessibilityGranted() {
+            applyKeyMappingsAPI(mappings: mappings)
+            withAnimation { show.wrappedValue = true }
+        } else {
+            checkAndRequestAccessibilityPermission()
+        }
     }
 }
 

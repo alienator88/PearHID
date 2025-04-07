@@ -47,4 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        checkAndRequestAccessibilityPermission()
+    }
 }

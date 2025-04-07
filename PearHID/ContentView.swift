@@ -58,18 +58,15 @@ struct ContentView: View {
                     }
 
                     Button {
-                        viewModel.clearHIDKeyMappings()
-                        withAnimation { showCheck = true }
+                        viewModel.clearHIDKeyMappings(show: $showCheck)
                     } label: {
                         Text("Reset").padding(5)
                     }
-                    .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                     .help("Remove all custom HID key mappings")
 
                     Button {
-                        viewModel.setHIDKeyMappings()
-                        withAnimation { showCheck = true }
+                        viewModel.setHIDKeyMappings(show: $showCheck)
                     } label: {
                         Text("Save").padding(5)
                     }
@@ -164,6 +161,7 @@ struct ContentView: View {
                 Button {
                     withAnimation {
                         viewModel.loadExistingMappingsFromAPI()
+                        showCheck = true
                     }
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
