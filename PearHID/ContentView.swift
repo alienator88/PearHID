@@ -12,6 +12,8 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
     @ObservedObject private var helperToolManager = HelperToolManager.shared
     @State private var showPlist = false
+    @State private var text = ""
+    @State private var showCheck = false
 
     var body: some View {
 
@@ -47,34 +49,36 @@ struct ContentView: View {
 
                     if !helperToolManager.isHelperToolInstalled {
                         HelperBadge()
-                            .frame(width: 220)
+                            .controlSize(.small)
                         Spacer()
+                    } else {
+                        TextField("Test key mappings here", text: $text)
+                            .textFieldStyle(.plain)
+                            .foregroundStyle(.secondary)
                     }
 
                     Button {
                         viewModel.clearHIDKeyMappings()
+                        withAnimation { showCheck = true }
                     } label: {
                         Text("Reset").padding(5)
-//                            .foregroundStyle(.red)
                     }
-//                    .buttonStyle(.borderedProminent)
-//                    .tint(.secondary)
                     .disabled(viewModel.mappings.isEmpty)
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
                     .help("Remove all custom HID key mappings")
 
                     Button {
                         viewModel.setHIDKeyMappings()
+                        withAnimation { showCheck = true }
                     } label: {
                         Text("Save").padding(5)
-//                            .foregroundStyle(.blue)
                     }
-//                    .buttonStyle(.borderedProminent)
-//                    .tint(.secondary)
                     .help("Set HID key mappings to the configured list above")
                     .opacity(viewModel.mappings.isEmpty ? 0.5 : 1)
 
                 }
+
+
 
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -83,9 +87,28 @@ struct ContentView: View {
 
             // Preview Plist Content
             if showPlist {
-                VStack() {
+                VStack(spacing: 5) {
                     HStack {
+                        Text("PearHID.KeyMapping.plist")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading)
+
                         Spacer()
+
+                        Button(action: {
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: "/Library/LaunchDaemons/PearHID.KeyMapping.plist")])
+                        }) {
+                            Image(systemName: "folder")
+                                .padding(5)
+                                .padding(.horizontal, 2)
+                                .padding(.bottom, 1)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .shadow(radius: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Copy to clipboard")
+
                         Button(action: {
                             copyToClipboard(viewModel.generatePlist())
                         }) {
@@ -93,14 +116,16 @@ struct ContentView: View {
                                 .padding(5)
                                 .padding(.horizontal, 2)
                                 .padding(.bottom, 1)
-                                .background(Color.blue)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .shadow(radius: 2)
                         }
                         .buttonStyle(.plain)
                         .help("Copy to clipboard")
                     }
-                    .padding([.top, .trailing])
+                    .padding([.top, .trailing], 5)
+
+                    Divider()
+
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             Text(viewModel.generatePlist())
@@ -108,12 +133,13 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                         }
-                        .padding()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                     }
                     Spacer()
                 }
                 .frame(width: 400)
-                .background(.ultraThinMaterial)
+                .background(.thickMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay {
                     RoundedRectangle(cornerRadius: 8)
@@ -124,6 +150,10 @@ struct ContentView: View {
                 .transition(.move(edge: .trailing))
 
             }
+
+            if showCheck {
+                CheckmarkOverlay(show: $showCheck)
+            }
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -133,7 +163,7 @@ struct ContentView: View {
             ToolbarItem(placement: .automatic) {
                 Button {
                     withAnimation {
-                        viewModel.loadExistingMappings()
+                        viewModel.loadExistingMappingsFromAPI()
                     }
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
@@ -157,10 +187,9 @@ struct ContentView: View {
             }
 
         }
-        .frame(minWidth: 640, minHeight: 450)
+        .frame(minWidth: 650, minHeight: 500)
         .background(.ultraThickMaterial)
         .background(MetalView().edgesIgnoringSafeArea(.all))
-        //        .background(.primary.opacity(0.00000001))
         .onTapGesture {
             withAnimation {
                 showPlist = false

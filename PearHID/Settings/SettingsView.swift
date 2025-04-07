@@ -183,7 +183,7 @@ struct SettingsView: View {
                 UpdateView()
                     .environmentObject(updater)
 
-//                Spacer()
+                //                Spacer()
 
             }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

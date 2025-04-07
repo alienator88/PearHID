@@ -50,11 +50,8 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		C783E55C2DA0A51000A08E00 /* Exceptions for "PearHIDHelper" folder in "Copy Files" phase from "PearHID" target */ = {
+		C71968B92DA488AE00FA2FA5 /* Exceptions for "PearHIDHelper" folder in "Copy Files" phase from "PearHID" target */ = {
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			attributesByRelativePath = {
-				com.alienator88.PearHID.Helper.plist = (CodeSignOnCopy, );
-			};
 			buildPhase = C701EEDE2DA0A32100907AC6 /* CopyFiles */;
 			membershipExceptions = (
 				com.alienator88.PearHID.Helper.plist,
@@ -66,11 +63,8 @@
 		C701EED02DA0A15C00907AC6 /* PearHIDHelper */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				C783E55C2DA0A51000A08E00 /* Exceptions for "PearHIDHelper" folder in "Copy Files" phase from "PearHID" target */,
+				C71968B92DA488AE00FA2FA5 /* Exceptions for "PearHIDHelper" folder in "Copy Files" phase from "PearHID" target */,
 			);
-			explicitFileTypes = {
-				com.alienator88.PearHID.Helper.plist = text.plist.xml;
-			};
 			path = PearHIDHelper;
 			sourceTree = "<group>";
 		};
