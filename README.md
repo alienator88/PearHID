@@ -4,7 +4,7 @@
    <br />
    <strong>Status: </strong>Maintained 
    <br />
-   <strong>Version: </strong>1.0 (BETA)
+   <strong>Version: </strong>1.0.0 (BETA)
    <br />
    <a href="https://github.com/alienator88/PearHID/releases"><strong>Download</strong></a>
     · 
@@ -14,19 +14,19 @@
 </p>
 </br>
 
-Easily swap keyboard keys with a nice SwiftUI frontend for hidutil
+Easily swap keyboard keys with a nice SwiftUI frontend for IOKit.hid/hidutil
 
 
 ## Features
 - Save/clear multiple key combinations at once
 - Save to launchd plist to persist reboots
-- Turn off persist in settings to only affect the current session
+- Turn off persist in settings to only affect the current session and disable launch daemon
 - Helper tool to perform the launchd plist editing without asking for user password each time
 - Custom auto-updater that pulls latest release notes and binaries from GitHub Releases
 
 
 ## Preview
-![image](https://github.com/user-attachments/assets/4e0fbe14-f766-48f0-ba0c-2b0769e4c35b)
+![image](https://github.com/user-attachments/assets/e9887a1d-44d4-4b89-9b26-edc00551ca87)
 
 
 ## Requirements
