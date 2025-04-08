@@ -10,6 +10,7 @@ import AlinFoundation
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
+    @EnvironmentObject var updater: Updater
     @ObservedObject private var helperToolManager = HelperToolManager.shared
     @AppStorage("settings.disableBackground") private var disableBackground: Bool = false
     @State private var showPlist = false
@@ -52,7 +53,13 @@ struct ContentView: View {
                         HelperBadge()
                             .controlSize(.small)
                         Spacer()
-                    } else {
+                    } else if updater.updateAvailable {
+                        UpdateBadge(updater: updater, hideLabel: true)
+                            .controlSize(.small)
+                        Spacer()
+                    }
+
+                    else {
                         TextField("Test key mappings here", text: $text)
                             .textFieldStyle(.plain)
                             .foregroundStyle(.secondary)

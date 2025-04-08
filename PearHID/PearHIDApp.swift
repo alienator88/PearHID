@@ -19,6 +19,7 @@ struct PearHIDApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(viewModel)
+                .environmentObject(updater)
                 .toolbar { Color.clear }
         }
         .windowStyle(.hiddenTitleBar)
