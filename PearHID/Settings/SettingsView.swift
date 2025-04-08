@@ -13,7 +13,7 @@ struct SettingsView: View {
     @ObservedObject private var helperToolManager = HelperToolManager.shared
     @EnvironmentObject var updater: Updater
     @AppStorage("settings.persistReboot") private var persistReboot: Bool = true
-    @AppStorage("settings.disableBackground") private var disableBackground: Bool = false
+    @AppStorage("settings.animatedBackground") private var animatedBackground: Bool = true
     @State private var commandOutput: String = "Command output will display here"
     @State private var commandToRun: String = "whoami"
     @State private var commandToRunManual: String = ""
@@ -193,12 +193,12 @@ struct SettingsView: View {
                             .frame(width: 20, height: 20)
                             .padding(.trailing, 5)
                             .foregroundStyle(.primary)
-                        Text("Disable animated background")
+                        Text("Animated background")
                             .font(.callout)
                             .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Toggle("", isOn: $disableBackground)
+                        Toggle("", isOn: $animatedBackground)
                             .toggleStyle(.switch)
                     }
                     .padding(5)

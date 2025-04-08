@@ -12,7 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
     @EnvironmentObject var updater: Updater
     @ObservedObject private var helperToolManager = HelperToolManager.shared
-    @AppStorage("settings.disableBackground") private var disableBackground: Bool = false
+    @AppStorage("settings.animatedBackground") private var animatedBackground: Bool = true
     @State private var showPlist = false
     @State private var text = ""
     @State private var showCheck = false
@@ -195,7 +195,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 650, minHeight: 500)
         .background {
-            if disableBackground {
+            if !animatedBackground {
                 Color.clear
             } else {
                 ZStack {
