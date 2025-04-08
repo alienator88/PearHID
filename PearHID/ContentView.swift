@@ -11,6 +11,7 @@ import AlinFoundation
 struct ContentView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
     @ObservedObject private var helperToolManager = HelperToolManager.shared
+    @AppStorage("settings.disableBackground") private var disableBackground: Bool = false
     @State private var showPlist = false
     @State private var text = ""
     @State private var showCheck = false
@@ -186,8 +187,17 @@ struct ContentView: View {
 
         }
         .frame(minWidth: 650, minHeight: 500)
-        .background(.ultraThickMaterial)
-        .background(MetalView().edgesIgnoringSafeArea(.all))
+        .background {
+            if disableBackground {
+                Color.clear
+            } else {
+                ZStack {
+                    MetalView() // metal view
+                    Rectangle().fill(.ultraThickMaterial) // material background
+                }
+                .edgesIgnoringSafeArea(.all)
+            }
+        }
         .onTapGesture {
             withAnimation {
                 showPlist = false

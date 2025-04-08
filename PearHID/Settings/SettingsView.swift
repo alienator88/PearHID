@@ -13,6 +13,7 @@ struct SettingsView: View {
     @ObservedObject private var helperToolManager = HelperToolManager.shared
     @EnvironmentObject var updater: Updater
     @AppStorage("settings.persistReboot") private var persistReboot: Bool = true
+    @AppStorage("settings.disableBackground") private var disableBackground: Bool = false
     @State private var commandOutput: String = "Command output will display here"
     @State private var commandToRun: String = "whoami"
     @State private var commandToRunManual: String = ""
@@ -38,6 +39,11 @@ struct SettingsView: View {
                             let result = performPrivilegedCommands(commands: "launchctl kickstart -k system/com.alienator88.PearHID.Helper")
                             if !result.0 {
                                 printOS("Helper Kickstart Error: \(result.1)")
+                            }
+                        }
+                        Button("Unregister Service") {
+                            Task {
+                                await helperToolManager.manageHelperTool(action: .uninstall)
                             }
                         }
                     }
@@ -179,6 +185,26 @@ struct SettingsView: View {
                     .help("If this is enabled, a LaunchDaemon will be installed so the mappings survive reboots. Otherwise the mappings only affect the current session.")
                 })
 
+                GroupBox(label: Text("Background").font(.title2).padding(.bottom, 5), content: {
+                    HStack(spacing: 0) {
+                        Image(systemName: "macwindow")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                            .padding(.trailing, 5)
+                            .foregroundStyle(.primary)
+                        Text("Disable animated background")
+                            .font(.callout)
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Toggle("", isOn: $disableBackground)
+                            .toggleStyle(.switch)
+                    }
+                    .padding(5)
+
+                })
+
 
                 UpdateView()
                     .environmentObject(updater)
@@ -203,7 +229,7 @@ struct SettingsView: View {
             }
         }
 
-        .frame(width: 500, height: 600, alignment: .top)
+        .frame(width: 500, height: 670, alignment: .top)
         .padding(20)
 
     }
