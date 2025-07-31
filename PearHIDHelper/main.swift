@@ -22,6 +22,11 @@ class HelperToolDelegate: NSObject, NSXPCListenerDelegate, HelperToolProtocol {
 
     // Accept new XPC connections by setting up the exported interface and object.
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection newConnection: NSXPCConnection) -> Bool {
+        guard isValidClient(connection: newConnection) else {
+            print("❌ Rejected connection from unauthorized client")
+            return false
+        }
+
         newConnection.exportedInterface = NSXPCInterface(with: HelperToolProtocol.self)
         newConnection.exportedObject = self
         newConnection.invalidationHandler = { [weak self] in
@@ -54,6 +59,16 @@ class HelperToolDelegate: NSObject, NSXPCListenerDelegate, HelperToolProtocol {
         let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let success = (process.terminationStatus == 0) // Check if process exited successfully
         reply(success, output.isEmpty ? "No output" : output)
+    }
+
+    // Check that the codesigning matches between the main app and the helper app
+    private func isValidClient(connection: NSXPCConnection) -> Bool {
+        do {
+            return try CodesignCheck.codeSigningMatches(pid: connection.processIdentifier)
+        } catch {
+            print("Helper code signing check failed with error: \(error)")
+            return false
+        }
     }
 }
 
