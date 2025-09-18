@@ -87,7 +87,7 @@ struct ContentView: View {
 
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(20)
+            .padding([.horizontal, .bottom], 20)
 
 
             // Preview Plist Content
@@ -134,22 +134,25 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             Text(viewModel.generatePlist())
-                                .textSelection(.enabled)
+                                .textSelection(.disabled)
                                 .foregroundStyle(.secondary)
+                                .font(.caption)
+                                .monospaced()
                             Spacer()
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 10)
                     }
                     Spacer()
                 }
-                .frame(width: 400)
-                .background(.thickMaterial)
+                .frame(width: 450)
+                .glassOrMaterial()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay {
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
                 }
+                .shadow(color: .black.opacity(0.5), radius: 2)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding([.trailing, .bottom])
                 .transition(.move(edge: .trailing))
@@ -160,37 +163,37 @@ struct ContentView: View {
                 CheckmarkOverlay(show: $showCheck)
             }
         }
+        .toolbarBackground(.hidden)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 MainMappingRowView()
             }
 
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button {
                     withAnimation {
                         viewModel.loadExistingMappingsFromAPI()
                         showCheck = true
                     }
                 } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.title3)
+                    Image(systemName: "arrow.counterclockwise.circle")
                 }
-                .buttonStyle(.bordered)
                 .help("Reload existing mappings")
-            }
-            ToolbarItem(placement: .automatic) {
+                .offset(x: -10)
+
                 Button {
                     withAnimation {
                         showPlist.toggle()
                     }
                 } label: {
                     Image(systemName: "sidebar.right")
-                        .font(.title3)
                 }
-                .buttonStyle(.bordered)
                 .help("Plist Preview")
-
+                .offset(x: -10)
             }
+
+
+
 
         }
         .frame(minWidth: 650, minHeight: 500)

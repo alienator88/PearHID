@@ -39,3 +39,23 @@ struct CheckmarkOverlay: View {
         }
     }
 }
+
+
+
+struct GlassOrMaterialModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .rect(cornerRadius: 8))
+        } else {
+            content
+                .background(.thickMaterial)
+        }
+    }
+}
+
+extension View {
+    func glassOrMaterial() -> some View {
+        self.modifier(GlassOrMaterialModifier())
+    }
+}

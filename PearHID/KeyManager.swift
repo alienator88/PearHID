@@ -5,10 +5,10 @@
 //  Created by Alin Lupascu on 12/20/24.
 //
 
-import Foundation
-import SwiftUI
 import AlinFoundation
+import Foundation
 import IOKit.hid
+import SwiftUI
 
 struct MainMappingRowView: View {
     @EnvironmentObject var viewModel: MappingsViewModel
@@ -27,10 +27,11 @@ struct MainMappingRowView: View {
                     .frame(width: 150)
             }
             .popover(isPresented: $showingFromPopover) {
-                KeySelectionPopover(selectedKey: $newMapping.from,
-                                    oppositeKey: newMapping.to,
-                                    usedKeys: viewModel.usedKeyStrings,
-                                    onDismiss: { showingFromPopover = false })
+                KeySelectionPopover(
+                    selectedKey: $newMapping.from,
+                    oppositeKey: newMapping.to,
+                    usedKeys: viewModel.usedFromKeys,
+                    onDismiss: { showingFromPopover = false })
             }
 
             Button {
@@ -40,22 +41,24 @@ struct MainMappingRowView: View {
                     .frame(width: 150)
             }
             .popover(isPresented: $showingToPopover) {
-                KeySelectionPopover(selectedKey: $newMapping.to,
-                                    oppositeKey: newMapping.from,
-                                    usedKeys: viewModel.usedKeyStrings,
-                                    onDismiss: { showingToPopover = false })
+                KeySelectionPopover(
+                    selectedKey: $newMapping.to,
+                    oppositeKey: newMapping.from,
+                    usedKeys: viewModel.usedToKeys,
+                    onDismiss: { showingToPopover = false })
             }
 
             Button {
-                if let _ = newMapping.from, let _ = newMapping.to {
+                if newMapping.from != nil, newMapping.to != nil {
                     viewModel.mappings.append(newMapping)
                     newMapping = KeyMapping()
                 }
             } label: {
                 Image(systemName: "plus")
             }
-            .opacity((newMapping.from == nil || newMapping.to == nil) ? 0 : 1)
+            .opacity((newMapping.from == nil || newMapping.to == nil) ? 0.5 : 1)
             .disabled(newMapping.from == nil || newMapping.to == nil)
+            .help("Select From and To keys to add mapping")
 
         }
     }
@@ -139,7 +142,8 @@ struct MappingRowListItem: View {
                 Text("\(mapping.from?.key ?? "Unknown")")
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(.horizontal, 5)
+                Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.title2).padding(
+                    .horizontal, 5)
 
                 Text("\(mapping.to?.key ?? "Unknown")")
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -173,8 +177,11 @@ struct MappingRowListItem: View {
 class MappingsViewModel: ObservableObject {
     @Published var mappings: [KeyMapping] = []
     @Published var plistLoaded: Bool = false
-    var usedKeyStrings: Set<String> {
-        Set(mappings.compactMap { $0.from?.key } + mappings.compactMap { $0.to?.key })
+    var usedFromKeys: Set<String> {
+        Set(mappings.compactMap { $0.from?.key })
+    }
+    var usedToKeys: Set<String> {
+        Set(mappings.compactMap { $0.to?.key })
     }
 
     init() {
@@ -198,38 +205,37 @@ class MappingsViewModel: ObservableObject {
         let items = mappings.compactMap { mappingToHexString(mapping: $0) }.joined(separator: ",\n")
 
         return """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
-        "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-            <dict>
-                <key>Label</key>
-                <string>PearHID.KeyMapping</string>
-                <key>ProgramArguments</key>
-                <array>
-                    <string>/usr/bin/hidutil</string>
-                    <string>property</string>
-                    <string>--set</string>
-                    <string>{"UserKeyMapping":[
-            \(items)
-                    ]}</string>
-                </array>
-                <key>RunAtLoad</key>
-                <true/>
-            </dict>
-        </plist>
-        """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+                <dict>
+                    <key>Label</key>
+                    <string>PearHID.KeyMapping</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                        <string>/usr/bin/hidutil</string>
+                        <string>property</string>
+                        <string>--set</string>
+                        <string>{"UserKeyMapping":[
+                \(items)
+                        ]}</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                </dict>
+            </plist>
+            """
     }
-
 
     private func mappingToHexString(mapping: KeyMapping) -> String? {
         guard let fromHex = mapping.from?.hex, let toHex = mapping.to?.hex else { return nil }
         return """
-                    {
-                            "HIDKeyboardModifierMappingSrc": 0x\(String(0x700000000 + UInt64(fromHex), radix: 16).uppercased()),
-                            "HIDKeyboardModifierMappingDst": 0x\(String(0x700000000 + UInt64(toHex), radix: 16).uppercased())
-                    }
-        """
+                        {
+                                "HIDKeyboardModifierMappingSrc": 0x\(String(0x7_0000_0000 + UInt64(fromHex), radix: 16).uppercased()),
+                                "HIDKeyboardModifierMappingDst": 0x\(String(0x7_0000_0000 + UInt64(toHex), radix: 16).uppercased())
+                        }
+            """
     }
 }
 
@@ -238,14 +244,19 @@ extension MappingsViewModel {
     func loadExistingMappingsFromAPI() {
         let systemClient = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
 
-        guard let services = IOHIDEventSystemClientCopyServices(systemClient) as? [IOHIDServiceClient] else {
+        guard
+            let services = IOHIDEventSystemClientCopyServices(systemClient) as? [IOHIDServiceClient]
+        else {
             printOS("Failed to get HID services")
             return
         }
 
         for service in services {
-            if IOHIDServiceClientConformsTo(service, UInt32(kHIDPage_GenericDesktop), UInt32(kHIDUsage_GD_Keyboard)) != 0,
-               let props = IOHIDServiceClientCopyProperty(service, kIOHIDUserKeyUsageMapKey as CFString) as? [[String: UInt64]] {
+            if IOHIDServiceClientConformsTo(
+                service, UInt32(kHIDPage_GenericDesktop), UInt32(kHIDUsage_GD_Keyboard)) != 0,
+                let props = IOHIDServiceClientCopyProperty(
+                    service, kIOHIDUserKeyUsageMapKey as CFString) as? [[String: UInt64]]
+            {
 
                 let loadedMappings: [KeyMapping] = props.compactMap { mapping in
                     let srcHex = mapping["HIDKeyboardModifierMappingSrc"] ?? 0
@@ -258,7 +269,9 @@ extension MappingsViewModel {
                     let toKey = findKeyItem(forHex: dstKeyHex)
 
                     guard let fromKey = fromKey, let toKey = toKey else {
-                        printOS("Could not find matching keys for src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))")
+                        printOS(
+                            "Could not find matching keys for src=\(String(format:"0x%X", srcKeyHex)), dst=\(String(format:"0x%X", dstKeyHex))"
+                        )
                         return nil
                     }
 
@@ -275,7 +288,6 @@ extension MappingsViewModel {
 
         printOS("No UserKeyMapping found via API")
     }
-
 
     private func findKeyItem(forHex hex: UInt64) -> KeyItem? {
         for group in allKeys {
@@ -309,14 +321,13 @@ extension MappingsViewModel {
 
                 let copy = "cp \(tempPath) \(plistPath)"
                 let chown = "chown root:wheel \(plistPath)"
-                let chmod =  "chmod 644 \(plistPath)"
+                let chmod = "chmod 644 \(plistPath)"
 
                 let success = executeFileCommands("\(copy); \(chown); \(chmod)")
                 if success {
                 } else {
                     printOS("Failed to setup launchd plist")
                 }
-
 
             } else {
                 // If the file doesn't exist, create it in the correct location
@@ -325,7 +336,7 @@ extension MappingsViewModel {
 
                 let move = "mv \(tempPath) \(plistPath)"
                 let chown = "chown root:wheel \(plistPath)"
-                let chmod =  "chmod 644 \(plistPath)"
+                let chmod = "chmod 644 \(plistPath)"
 
                 let success = executeFileCommands("\(move); \(chown); \(chmod)")
                 if success {
@@ -347,8 +358,6 @@ extension MappingsViewModel {
             self.plistLoaded = false
         }
 
-
-
     }
 
     func applyKeyMappingsAPI(mappings: [KeyMapping]) {
@@ -357,23 +366,28 @@ extension MappingsViewModel {
         let array: [[String: UInt64]] = mappings.compactMap {
             guard let from = $0.from?.hex, let to = $0.to?.hex else { return nil }
             return [
-                "HIDKeyboardModifierMappingSrc": 0x700000000 + UInt64(from),
-                "HIDKeyboardModifierMappingDst": 0x700000000 + UInt64(to)
+                "HIDKeyboardModifierMappingSrc": 0x7_0000_0000 + UInt64(from),
+                "HIDKeyboardModifierMappingDst": 0x7_0000_0000 + UInt64(to),
             ]
         }
 
         let systemClient = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
 
-        guard let services = IOHIDEventSystemClientCopyServices(systemClient) as? [IOHIDServiceClient] else {
+        guard
+            let services = IOHIDEventSystemClientCopyServices(systemClient) as? [IOHIDServiceClient]
+        else {
             printOS("Failed to get HID services")
             return
         }
 
         for service in services {
-            if IOHIDServiceClientConformsTo(service, UInt32(kHIDPage_GenericDesktop), UInt32(kHIDUsage_GD_Keyboard)) != 0 {
-                let success = IOHIDServiceClientSetProperty(service,
-                                                            kIOHIDUserKeyUsageMapKey as CFString,
-                                                            array as CFArray)
+            if IOHIDServiceClientConformsTo(
+                service, UInt32(kHIDPage_GenericDesktop), UInt32(kHIDUsage_GD_Keyboard)) != 0
+            {
+                let success = IOHIDServiceClientSetProperty(
+                    service,
+                    kIOHIDUserKeyUsageMapKey as CFString,
+                    array as CFArray)
                 if !success {
                     printOS("Failed to apply mapping to service")
                 }
@@ -414,10 +428,6 @@ extension MappingsViewModel {
         }
     }
 }
-
-
-
-
 
 func executeFileCommands(_ commands: String) -> Bool {
     var status = false

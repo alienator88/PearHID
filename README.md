@@ -4,7 +4,7 @@
    <br />
    <strong>Status: </strong>Maintained 
    <br />
-   <strong>Version: </strong>1.0.1
+   <strong>Version: </strong>1.0.2
    <br />
    <a href="https://github.com/alienator88/PearHID/releases"><strong>Download</strong></a>
     · 
